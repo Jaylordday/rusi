@@ -22,6 +22,18 @@ st.markdown("""
     .stApp {
         color: #ffffff;
     }
+    /* Clean Sidebar Styling */
+    section[data-testid="stSidebar"] {
+        background-color: #111827;
+        border-right: 1px solid #1f2937;
+    }
+    section[data-testid="stSidebar"] .stRadio > label {
+        color: #9ca3af;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 0.8rem;
+        margin-bottom: 10px;
+    }
     .stMetric {
         background-color: #1f2937;
         padding: 15px;
@@ -110,23 +122,31 @@ if "keep_alive_started" not in st.session_state:
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.markdown("<h1 class='bike-header'>🏍️ RUSI HUB</h1>", unsafe_allow_html=True)
-    st.image("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcR_mR3Rk1-E8eOsh5tKj2R1V2H1z8w_m6x-Vw&s", caption="Rusi Motorcycle Hub") # Placeholder for Rusi logo
+    st.title("🏍️ Rusi Hub")
     
-    try:
-        page_info = fb.get_page_info()
-        st.write(f"**Page:** {page_info.get('name')}")
-        st.write(f"**Fans:** 📈 {page_info.get('fan_count'):,}")
-        st.markdown(f"[Go to Page]({page_info.get('link')})")
-    except:
-        st.warning("Failed to fetch page info. Check token.")
-
+    app_mode = st.radio(
+        "Navigation",
+        ["📊 Dashboard", "💬 Comments Hub", "✉️ Inbox", "📓 Recorded Data", "🏍️ Rusi Inventory"],
+        index=0,
+        help="Select a page to manage your business"
+    )
+    
     st.divider()
-    app_mode = st.radio("Navigation", ["📊 Dashboard", "💬 Comments Hub", "✉️ Inbox", "📓 Recorded Data", "🏍️ Rusi Inventory"])
     
-    if st.button("🔄 Sync Now"):
+    if st.button("🔄 Refresh Data", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
+
+    # Move Page Info to the bottom for a cleaner look
+    st.sidebar.markdown("---")
+    try:
+        page_info = fb.get_page_info()
+        with st.expander("📡 Page Status", expanded=True):
+            st.write(f"**{page_info.get('name')}**")
+            st.write(f"👥 Fans: **{page_info.get('fan_count'):,}**")
+            st.markdown(f"[View on Facebook ↗️]({page_info.get('link')})")
+    except:
+        st.error("Connection Offline")
 
 # --- HELPER FUNCTIONS ---
 def get_sentiment(text):
