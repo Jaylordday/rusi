@@ -9,6 +9,7 @@ import plotly.express as px
 import sqlite3
 import os
 from textblob import TextBlob
+from streamlit_option_menu import option_menu
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="RUSI Hub | FB Auto-Manager", page_icon="🏍️", layout="wide")
@@ -122,31 +123,59 @@ if "keep_alive_started" not in st.session_state:
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.title("🏍️ Rusi Hub")
+    st.markdown("""
+        <div style="padding: 10px 0px;">
+            <h2 style="color: #ff4b4b; text-align: center;">🏍️ RUSI HUB</h2>
+            <p style="text-align: center; color: #8a8d91; font-size: 0.8em;">Business Management v1.2</p>
+        </div>
+    """, unsafe_allow_html=True)
     
-    app_mode = st.radio(
-        "Navigation",
-        ["📊 Dashboard", "💬 Comments Hub", "✉️ Inbox", "📓 Recorded Data", "🏍️ Rusi Inventory"],
-        index=0,
-        help="Select a page to manage your business"
+    app_mode = option_menu(
+        menu_title=None,
+        options=["Dashboard", "Comments Hub", "Inbox", "Recorded Data", "Rusi Inventory"],
+        icons=["speedometer2", "chat-dots", "envelope", "archive", "bicycle"],
+        menu_icon="cast",
+        default_index=0,
+        styles={
+            "container": {"padding": "0!important", "background-color": "transparent"},
+            "icon": {"color": "#ff4b4b", "font-size": "18px"}, 
+            "nav-link": {
+                "font-size": "16px", 
+                "text-align": "left", 
+                "margin": "5px", 
+                "color": "#ffffff",
+                "--hover-color": "#262730"
+            },
+            "nav-link-selected": {"background-color": "#ff4b4b", "font-weight": "normal"},
+        }
     )
     
-    st.divider()
-    
-    if st.button("🔄 Refresh Data", use_container_width=True):
-        st.cache_data.clear()
-        st.rerun()
+    # Map the menu names back to the app_mode logic if needed
+    mode_map = {
+        "Dashboard": "📊 Dashboard",
+        "Comments Hub": "💬 Comments Hub",
+        "Inbox": "✉️ Inbox",
+        "Recorded Data": "📓 Recorded Data",
+        "Rusi Inventory": "🏍️ Rusi Inventory"
+    }
+    app_mode = mode_map[app_mode]
+
+    st.spacer = st.container()
+    with st.spacer:
+        st.markdown("<br><br>", unsafe_allow_html=True)
+        if st.button("🔄 Refresh System", use_container_width=True):
+            st.cache_data.clear()
+            st.rerun()
 
     # Move Page Info to the bottom for a cleaner look
-    st.sidebar.markdown("---")
     try:
         page_info = fb.get_page_info()
-        with st.expander("📡 Page Status", expanded=True):
+        with st.expander("📡 LIVE STATUS", expanded=False):
             st.write(f"**{page_info.get('name')}**")
             st.write(f"👥 Fans: **{page_info.get('fan_count'):,}**")
-            st.markdown(f"[View on Facebook ↗️]({page_info.get('link')})")
+            st.markdown(f"[View Page ↗️]({page_info.get('link')})")
     except:
-        st.error("Connection Offline")
+        pass
 
 # --- HELPER FUNCTIONS ---
 def get_sentiment(text):

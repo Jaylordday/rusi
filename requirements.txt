@@ -5,3 +5,4 @@ plotly
 python-dotenv
 pillow
 textblob
+streamlit-option-menu
