@@ -58,6 +58,17 @@ app.get('/api/conversations', async (req, res) => {
     }
 });
 
+app.get('/api/notifications', async (req, res) => {
+    try {
+        // Fetches notifications for the page
+        const response = await axios.get(`${BASE_URL}/${PAGE_ID}/notifications?fields=id,title,link,created_time,message,from&access_token=${ACCESS_TOKEN}`);
+        res.json(response.data.data || []);
+    } catch (error) {
+        // If notifications endpoint is restricted by token, return empty instead of 500
+        res.json([]);
+    }
+});
+
 app.get('/api/messages/:convId', async (req, res) => {
     try {
         const response = await axios.get(`${BASE_URL}/${req.params.convId}/messages?fields=message,from,created_time&access_token=${ACCESS_TOKEN}`);
