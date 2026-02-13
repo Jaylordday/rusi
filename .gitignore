@@ -1,9 +1,6 @@
+node_modules/
 .env
-__pycache__/
-*.pyc
-.streamlit/
-rusi_records.db
-.venv
-venv
-env
+*.db
+.DS_Store
+npm-debug.log
 /access

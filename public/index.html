@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RUSI | Admin Pro</title>
+    <link href="https://cdn.jsdelivr.net/npm/daisyui@4.7.2/dist/full.min.css" rel="stylesheet" type="text/css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        .glass-card {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .active-nav {
+            background: #ff4b4b !important;
+            color: white !important;
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-thumb { background: #ff4b4b; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-[#0f111a] min-h-screen text-slate-200">
+
+    <div class="flex h-screen overflow-hidden">
+        <!-- Modern Sidebar -->
+        <aside class="w-64 bg-[#161925] border-r border-white/5 flex flex-col">
+            <div class="p-6">
+                <h1 class="text-2xl font-black text-[#ff4b4b] tracking-tighter">RUSI <span class="text-white">HUB</span></h1>
+                <p class="text-[10px] uppercase opacity-50 tracking-[3px] mt-1">Management Pro</p>
+            </div>
+            
+            <nav class="flex-1 px-4 space-y-2 mt-4">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="flex items-center w-full px-4 py-3 rounded-xl transition-all hover:bg-white/5 active-nav">
+                    <i class="fa-solid fa-gauge-high mr-3 w-5"></i> Dashboard
+                </button>
+                <button onclick="switchTab('feed')" id="nav-feed" class="flex items-center w-full px-4 py-3 rounded-xl transition-all hover:bg-white/5">
+                    <i class="fa-solid fa-rss mr-3 w-5"></i> Social Feed
+                </button>
+                <button onclick="switchTab('inbox')" id="nav-inbox" class="flex items-center w-full px-4 py-3 rounded-xl transition-all hover:bg-white/5">
+                    <i class="fa-solid fa-comment-dots mr-3 w-5"></i> Inbox
+                </button>
+                <button onclick="switchTab('inventory')" id="nav-inventory" class="flex items-center w-full px-4 py-3 rounded-xl transition-all hover:bg-white/5">
+                    <i class="fa-solid fa-motorcycle mr-3 w-5"></i> Inventory
+                </button>
+            </nav>
+
+            <div class="p-6 border-t border-white/5">
+                <div id="page-status" class="flex items-center space-x-3 opacity-70">
+                    <div class="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                    <span class="text-xs font-medium">System Online</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 overflow-y-auto relative">
+            <!-- Top Navbar -->
+            <header class="sticky top-0 z-30 flex items-center justify-between px-8 py-4 bg-[#0f111a]/80 backdrop-blur-md border-b border-white/5">
+                <h2 id="current-tab-title" class="text-xl font-bold">Dashboard Overview</h2>
+                <div class="flex items-center space-x-4">
+                    <button onclick="refreshData()" class="btn btn-ghost btn-sm text-[#ff4b4b]"><i class="fa-solid fa-rotate"></i> Sync</button>
+                    <div class="avatar online">
+                        <div class="w-10 rounded-full ring ring-[#ff4b4b] ring-offset-base-100 ring-offset-2">
+                            <img id="user-avatar" src="https://ui-avatars.com/api/?name=Rusi" />
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dynamic Content -->
+            <div id="content-area" class="p-8 max-w-7xl mx-auto">
+                <!-- Loading State -->
+                <div id="loader" class="flex flex-col items-center justify-center h-64">
+                    <span class="loading loading-spinner text-[#ff4b4b] loading-lg"></span>
+                    <p class="mt-4 text-sm opacity-50">Fetching Facebook Stream...</p>
+                </div>
+
+                <!-- Dashboard Tab -->
+                <div id="tab-dashboard" class="hidden space-y-8">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="glass-card rounded-3xl p-6">
+                            <p class="text-sm opacity-50 mb-1">Total Followers</p>
+                            <h3 id="fan-count" class="text-3xl font-bold">0</h3>
+                        </div>
+                        <div class="glass-card rounded-3xl p-6">
+                            <p class="text-sm opacity-50 mb-1">Recent Engagement</p>
+                            <h3 class="text-3xl font-bold text-[#ff4b4b]">High</h3>
+                        </div>
+                        <div class="glass-card rounded-3xl p-6">
+                            <p class="text-sm opacity-50 mb-1">Response Rate</p>
+                            <h3 class="text-3xl font-bold text-green-400">98%</h3>
+                        </div>
+                    </div>
+                    <!-- Recent Posts Grid -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6" id="dashboard-posts"></div>
+                </div>
+
+                <!-- Feed Tab -->
+                <div id="tab-feed" class="hidden space-y-6 max-w-3xl mx-auto" id="feed-container"></div>
+
+                <!-- Inbox Tab -->
+                <div id="tab-inbox" class="hidden flex h-[70vh] glass-card rounded-3xl overflow-hidden">
+                    <div class="w-1/3 border-r border-white/5 overflow-y-auto p-4 space-y-2" id="conversation-list"></div>
+                    <div class="flex-1 flex flex-col bg-black/20">
+                        <div class="flex-1 overflow-y-auto p-6 space-y-4" id="message-history">
+                            <div class="flex items-center justify-center h-full opacity-30 italic">Select a conversation</div>
+                        </div>
+                        <div class="p-4 border-t border-white/5 bg-white/5 flex space-x-2">
+                            <input id="reply-input" type="text" placeholder="Type a professional message..." class="input input-bordered flex-1 bg-white/5 border-white/10" />
+                            <button onclick="sendPrivateMessage()" class="btn bg-[#ff4b4b] hover:bg-[#e43b3b] text-white border-0">Send</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Inventory Tab -->
+                <div id="tab-inventory" class="hidden grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Static Content -->
+                    <div class="glass-card rounded-3xl overflow-hidden hover:scale-[1.02] transition-all">
+                        <img src="https://img.youtube.com/vi/q_G6vGf4EKE/sddefault.jpg" class="w-full h-48 object-cover" />
+                        <div class="p-6">
+                            <h4 class="font-bold text-lg">Rusi Classic 250</h4>
+                            <p class="text-sm opacity-50 mt-1">Cafe Racer Style</p>
+                            <div class="flex justify-between items-center mt-6">
+                                <span class="text-[#ff4b4b] font-bold">₱75,000</span>
+                                <button class="btn btn-xs btn-outline border-white/10 text-white">Edit Specs</button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Repeat for more -->
+                </div>
+
+            </div>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        let currentTab = 'dashboard';
+        let conversations = [];
+        let selectedConvId = null;
+
+        async function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('nav button').forEach(el => el.classList.remove('active-nav'));
+            
+            document.getElementById(`tab-${tab}`).classList.remove('hidden');
+            document.getElementById(`nav-${tab}`).classList.add('active-nav');
+            document.getElementById('current-tab-title').innerText = tab.charAt(0).toUpperCase() + tab.slice(1);
+            
+            loadTabData(tab);
+        }
+
+        async function loadTabData(tab) {
+            const loader = document.getElementById('loader');
+            loader.classList.remove('hidden');
+
+            try {
+                if (tab === 'dashboard' || tab === 'feed') {
+                    const res = await fetch('/api/feed');
+                    const posts = await res.json();
+                    renderFeed(posts, tab === 'dashboard' ? 'dashboard-posts' : 'tab-feed');
+                    
+                    const infoRes = await fetch('/api/page-info');
+                    const info = await infoRes.json();
+                    document.getElementById('fan-count').innerText = info.fan_count.toLocaleString();
+                    document.getElementById('user-avatar').src = info.picture.data.url;
+                } else if (tab === 'inbox') {
+                    const res = await fetch('/api/conversations');
+                    conversations = await res.json();
+                    renderConversations();
+                }
+            } catch (error) {
+                console.error(error);
+            }
+            loader.classList.add('hidden');
+        }
+
+        function renderFeed(posts, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = posts.map(p => `
+                <div class="glass-card rounded-3xl p-6 hover:border-[#ff4b4b]/50 transition-all group">
+                    <div class="flex items-start space-x-4">
+                        ${p.full_picture ? `<img src="${p.full_picture}" class="w-24 h-24 rounded-2xl object-cover shadow-xl" />` : ''}
+                        <div class="flex-1">
+                            <span class="text-[10px] opacity-40 uppercase">${new Date(p.created_time).toLocaleDateString()}</span>
+                            <p class="mt-1 line-clamp-2">${p.message || 'Shared image'}</p>
+                            <div class="flex items-center space-x-4 mt-4">
+                                <span class="text-xs font-semibold opacity-60"><i class="fa-solid fa-heart text-[#ff4b4b] mr-1"></i> ${p.reactions.summary.total_count}</span>
+                                <span class="text-xs font-semibold opacity-60"><i class="fa-solid fa-comment mr-1"></i> ${p.comments.summary.total_count}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderConversations() {
+            const list = document.getElementById('conversation-list');
+            list.innerHTML = conversations.map(c => {
+                const participant = c.participants.data.find(p => p.id !== '831829270014292');
+                return `
+                    <div onclick="loadHistory('${c.id}', '${participant.id}', '${participant.name}')" class="p-4 rounded-2xl hover:bg-white/5 cursor-pointer border border-transparent ${selectedConvId === c.id ? 'bg-white/5 border-white/10' : ''}">
+                        <h4 class="font-bold text-sm">${participant.name}</h4>
+                        <p class="text-xs opacity-50 truncate mt-1">${c.messages.data[0].message}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function loadHistory(convId, recipientId, name) {
+            selectedConvId = convId;
+            selectedRecipientId = recipientId;
+            renderConversations();
+            const res = await fetch(`/api/messages/${convId}`);
+            const messages = await res.json();
+            const chat = document.getElementById('message-history');
+            chat.innerHTML = messages.reverse().map(m => {
+                const isMe = m.from.id === '831829270014292';
+                return `
+                    <div class="flex ${isMe ? 'justify-end' : 'justify-start'}">
+                        <div class="max-w-[80%] rounded-2xl px-4 py-2 ${isMe ? 'bg-[#ff4b4b] text-white' : 'bg-white/10'}">
+                            <p class="text-sm">${m.message}</p>
+                            <span class="text-[10px] opacity-50 block mt-1">${new Date(m.created_time).getHours()}:${new Date(m.created_time).getMinutes()}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            chat.scrollTo(0, chat.scrollHeight);
+        }
+
+        async function sendPrivateMessage() {
+            const input = document.getElementById('reply-input');
+            const message = input.value;
+            if (!message || !selectedConvId) return;
+
+            await fetch('/api/reply/message', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ recipientId: selectedRecipientId, message })
+            });
+            input.value = '';
+            loadHistory(selectedConvId, selectedRecipientId, '');
+        }
+
+        function refreshData() {
+            loadTabData(currentTab);
+        }
+
+        // Init
+        switchTab('dashboard');
+    </script>
+</body>
+</html>
