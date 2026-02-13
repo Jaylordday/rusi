@@ -29,6 +29,13 @@ st.markdown("""
         border-left: 5px solid #ff4b4b;
         box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
     }
+    .post-card {
+        background-color: #1a1c23;
+        padding: 15px;
+        border-radius: 15px;
+        margin-bottom: 20px;
+        border: 1px solid #3e4451;
+    }
     .comment-card {
         background-color: #262730;
         padding: 20px;
@@ -40,6 +47,13 @@ st.markdown("""
     .comment-card:hover {
         transform: scale(1.01);
         border-color: #ff4b4b;
+    }
+    .stat-badge {
+        background: #374151;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.8em;
+        margin-right: 10px;
     }
     .bike-header {
         color: #ff4b4b;
@@ -124,39 +138,81 @@ def get_sentiment(text):
 
 # --- DASHBOARD ---
 if app_mode == "📊 Dashboard":
-    st.title("Business Overview")
+    st.title("Business Social Feed")
     
-    col1, col2, col3 = st.columns(3)
     posts = fb.get_posts(limit=10)
     
-    with col1:
-        st.metric("Recent Posts", len(posts))
-    with col2:
-        # Simple engagement metric
-        st.metric("Engagement Status", "High 🔥" if len(posts) > 5 else "Moderate")
-    with col3:
-        st.metric("Status", "🟢 Active", delta="Live Sync")
+    if not posts:
+        st.info("No recent posts found.")
+    else:
+        for p in posts:
+            with st.container():
+                st.markdown(f'<div class="post-card">', unsafe_allow_html=True)
+                
+                col1, col2 = st.columns([1, 2])
+                
+                with col1:
+                    if 'full_picture' in p:
+                        st.image(p['full_picture'], use_container_width=True)
+                
+                with col2:
+                    st.write(f"**Posted on:** {p['created_time'][:16]}")
+                    msg = p.get('message', '*No text content*')
+                    st.markdown(f'<p style="font-size: 1.1em; color: #ffd700;">{msg[:200]}...</p>', unsafe_allow_html=True)
+                    
+                    # Reactions and Comments Summary
+                    reacts = p.get('reactions', {}).get('summary', {}).get('total_count', 0)
+                    comm_count = p.get('comments', {}).get('summary', {}).get('total_count', 0)
+                    
+                    st.markdown(f"""
+                    <span class="stat-badge">👍 {reacts} Reactions</span>
+                    <span class="stat-badge">💬 {comm_count} Comments</span>
+                    """, unsafe_allow_html=True)
+                    
+                    # Interaction Buttons
+                    if st.button(f"View Comments ({comm_count})", key=f"post_{p['id']}"):
+                        st.session_state.selected_post = p['id']
+                        st.session_state.selected_post_msg = p.get('message', 'Post')
+                        # Note: We'll show these below or redirect
+                        st.toast("Opening comments...")
 
-    st.subheader("Engagement Analytics")
-    if posts:
-        df_posts = pd.DataFrame(posts)
-        # Using post 'created_time' for a simple trend
-        df_posts['date'] = pd.to_datetime(df_posts['created_time']).dt.date
-        trend = df_posts.groupby('date').size().reset_index(name='Post Count')
-        fig = px.area(trend, x='date', y='Post Count', title="Post Frequency", color_discrete_sequence=['#ff4b4b'])
-        st.plotly_chart(fig, use_container_width=True)
+                st.markdown('</div>', unsafe_allow_html=True)
+
+        if "selected_post" in st.session_state:
+            st.divider()
+            st.subheader(f"Comments for: {st.session_state.selected_post_msg[:50]}...")
+            if st.button("Close Comments"):
+                del st.session_state.selected_post
+                st.rerun()
+                
+            post_comments = fb.get_comments(st.session_state.selected_post)
+            if post_comments:
+                for c in post_comments:
+                    with st.chat_message("user"):
+                        st.write(f"**{c.get('from', {}).get('name', 'User')}**")
+                        st.write(c['message'])
+                        st.caption(f"Likes: {c.get('like_count', 0)} | {c['created_time'][:16]}")
+                        
+                        # Reply within Dashboard
+                        with st.expander("Reply"):
+                            rep_val = st.text_input("Message", key=f"dash_rep_{c['id']}")
+                            if st.button("Send", key=f"dash_btn_{c['id']}"):
+                                fb.reply_to_comment(c['id'], rep_val)
+                                st.success("Reply sent!")
+            else:
+                st.info("No comments yet on this post.")
 
 # --- COMMENTS HUB ---
 elif app_mode == "💬 Comments Hub":
-    st.title("Real-time Engagement")
-    st.write("Fetching latest comments from recent posts...")
+    st.title("Activity Feed & Interactions")
+    st.write("Track and respond to all recent engagement across your page.")
     
-    with st.spinner("Synching comments..."):
+    with st.spinner("Synching all recent comments..."):
         all_comments = fb.get_all_recent_comments(post_limit=5)
     
     if all_comments:
         for c in all_comments:
-            # Record it automatically
+            # Record it automatically in Local DB
             save_comment(c['id'], c.get('from', {}).get('name', 'Anonymous'), c['message'], c['post_id'], c['created_time'])
             
             sentiment_text, sentiment_class = get_sentiment(c['message'])
@@ -164,36 +220,46 @@ elif app_mode == "💬 Comments Hub":
             with st.container():
                 st.markdown(f"""
                 <div class="comment-card">
-                    <div style="display: flex; justify-content: space-between;">
-                        <b>👤 {c.get('from', {}).get('name', 'User')}</b>
-                        <span class="{sentiment_class}">{sentiment_text}</span>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <div style="display: flex; align-items: center;">
+                            <img src="{c.get('from', {}).get('picture', {}).get('data', {}).get('url', 'https://www.gravatar.com/avatar/00000000000000000000000000000000?d=mp&f=y')}" 
+                                 style="width: 40px; height: 40px; border-radius: 50%; margin-right: 12px; border: 2px solid #ff4b4b;">
+                            <b>{c.get('from', {}).get('name', 'User')}</b>
+                        </div>
+                        <span class="{sentiment_class}" style="font-weight: bold;">{sentiment_text}</span>
                     </div>
-                    <p style="font-size: 1.1em; color: #ffd700; margin: 10px 0;">"{c['message']}"</p>
-                    <small>🕒 {c['created_time']} | On Post: {c['post_message'][:40]}...</small>
+                    <div style="background: #1a1c23; padding: 15px; border-radius: 8px; border-left: 4px solid #ff4b4b;">
+                        <p style="font-size: 1.15em; color: #ffffff; margin: 0;">"{c['message']}"</p>
+                    </div>
+                    <div style="margin-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <small style="color: #8a8d91;">🕒 {c['created_time'][:16]} | On Post: {c['post_message'][:30]}...</small>
+                        <span style="color: #ff4b4b; font-size: 0.9em;">❤️ {c.get('like_count', 0)} Likes</span>
+                    </div>
                 </div>
                 """, unsafe_allow_html=True)
                 
                 # Auto-reply suggestions
                 msg_lower = c['message'].lower()
                 auto_reply = ""
-                if "how much" in msg_lower or "price" in msg_lower:
-                    auto_reply = "Hello! For pricing, please visit our nearest branch or DM us for a quote based on your location. 🏍️"
-                elif "location" in msg_lower or "where" in msg_lower:
-                    auto_reply = "We have branches nationwide! Please check our page's 'About' section for the one nearest to you."
+                if any(word in msg_lower for word in ["price", "how much", "hm", "magkano"]):
+                    auto_reply = "Hi! Thank you for your interest in RUSI. For the best pricing and downpayment options, please visit our nearest branch! 🏍️"
+                elif any(word in msg_lower for word in ["loc", "where", "saan"]):
+                    auto_reply = "Hello! We have branches nationwide. Let us know your city so we can find the nearest one for you! 📍"
                 
-                # Reply UI
-                cols = st.columns([4, 1])
-                with cols[0]:
-                    reply_msg = st.text_input("Quick Reply", value=auto_reply, key=c['id'])
-                with cols[1]:
-                    if st.button("🚀 Send", key=f"btn_{c['id']}"):
+                # Enhanced Reply UI
+                with st.expander("🗨️ Click to Respond"):
+                    reply_msg = st.text_area("Your response", value=auto_reply, key=f"feed_rep_{c['id']}", height=80)
+                    if st.button("🚀 Post Reply", key=f"feed_btn_{c['id']}"):
                         if reply_msg:
                             res = fb.reply_to_comment(c['id'], reply_msg)
-                            st.toast("Reply sent!" if "id" in res else f"Error: {res}")
+                            if "id" in res:
+                                st.success("Reply successfully posted to Facebook!")
+                            else:
+                                st.error(f"Error: {res}")
                         else:
-                            st.warning("Message empty")
+                            st.warning("Please type a message first.")
     else:
-        st.info("No comments found on the last 5 posts.")
+        st.info("No recent comments found to display.")
 
 # --- INBOX ---
 elif app_mode == "✉️ Inbox":

@@ -12,12 +12,14 @@ class FacebookManager:
         return response.json()
 
     def get_posts(self, limit=10):
-        url = f"{self.base_url}/{self.page_id}/posts?fields=message,created_time,id,full_picture&limit={limit}&access_token={self.access_token}"
+        # Fetches posts with reactions and comment counts
+        url = f"{self.base_url}/{self.page_id}/posts?fields=message,created_time,id,full_picture,reactions.summary(true),comments.summary(true)&limit={limit}&access_token={self.access_token}"
         response = requests.get(url)
         return response.json().get('data', [])
 
     def get_comments(self, post_id, limit=50):
-        url = f"{self.base_url}/{post_id}/comments?fields=from,message,created_time&limit={limit}&access_token={self.access_token}"
+        # Fetches comments with user profile pictures if possible
+        url = f"{self.base_url}/{post_id}/comments?fields=from{{name,picture}},message,created_time,like_count&limit={limit}&access_token={self.access_token}"
         response = requests.get(url)
         return response.json().get('data', [])
 
