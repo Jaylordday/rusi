@@ -197,23 +197,74 @@ elif app_mode == "💬 Comments Hub":
 
 # --- INBOX ---
 elif app_mode == "✉️ Inbox":
-    st.title("Messenger Hub")
-    st.warning("Messages require specific Page Permissions (pages_messaging). Ensure your token has them.")
+    st.title("📭 Messenger Hub")
     
-    conversations = fb.get_messages()
-    
-    if isinstance(conversations, list):
-        if not conversations:
-            st.info("No recent conversations found.")
-        for conv in conversations:
-            sender = conv.get('senders', {}).get('data', [{}])[0].get('name', 'Unknown')
-            last_msg = conv.get('messages', {}).get('data', [{}])[0].get('message', 'No message')
-            
-            with st.expander(f"✉️ {sender} (Last updated: {conv['updated_time']})"):
-                st.write(f"**Last Message:** {last_msg}")
-                # More message history can be expanded here
+    with st.spinner("Loading conversations..."):
+        conversations = fb.get_messages()
+
+    if not conversations:
+        st.info("No recent conversations found.")
     else:
-        st.error("Could not fetch messages. Likely permission related.")
+        # Create a layout with a sidebar-like list of chats and a main view for messages
+        chat_col, msg_col = st.columns([1, 2])
+
+        # Prepare chat list
+        chat_options = {}
+        for conv in conversations:
+            # Get the participant who is not the page
+            participants = conv.get('participants', {}).get('data', [])
+            sender_name = "Unknown"
+            sender_id = ""
+            for p in participants:
+                if p.get('id') != PAGE_ID:
+                    sender_name = p.get('name', 'Anonymous')
+                    sender_id = p.get('id')
+                    break
+            
+            label = f"{sender_name} (Updated: {conv['updated_time'][:16]})"
+            chat_options[label] = {"id": conv['id'], "sender_name": sender_name, "sender_id": sender_id}
+
+        with chat_col:
+            st.subheader("Chats")
+            selected_chat_label = st.radio("Select a conversation", list(chat_options.keys()), label_visibility="collapsed")
+            selected_chat = chat_options[selected_chat_label]
+
+        with msg_col:
+            st.subheader(f"Chat with {selected_chat['sender_name']}")
+            
+            # Fetch and display history
+            history = fb.get_conversation_history(selected_chat['id'])
+            if history:
+                # Reverse to show newest at bottom
+                for msg in reversed(history):
+                    is_me = msg.get('from', {}).get('id') == PAGE_ID
+                    align = "right" if is_me else "left"
+                    bg_color = "#0084ff" if is_me else "#3e4042"
+                    text_color = "white"
+                    
+                    st.markdown(f"""
+                    <div style="display: flex; flex-direction: column; align-items: {'flex-end' if is_me else 'flex-start'}; margin-bottom: 10px;">
+                        <div style="background-color: {bg_color}; color: {text_color}; padding: 10px 15px; border-radius: 18px; max-width: 80%; word-wrap: break-word;">
+                            {msg.get('message', '')}
+                        </div>
+                        <small style="color: #8a8d91; margin-top: 2px;">{msg.get('created_time')[:16]}</small>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            st.divider()
+            # Reply Input
+            with st.form(key=f"msg_form_{selected_chat['id']}", clear_on_submit=True):
+                reply_text = st.text_area("Type a message...", placeholder="Hello! How can we help you with your Rusi bike today?")
+                submit_btn = st.form_submit_button("💨 Send Message")
+                
+                if submit_btn and reply_text:
+                    res = fb.send_private_message(selected_chat['sender_id'], reply_text)
+                    if "message_id" in res:
+                        st.success("Message sent!")
+                        time.sleep(1)
+                        st.rerun()
+                    else:
+                        st.error(f"Failed to send: {res}")
 
 # --- RECORDED DATA ---
 elif app_mode == "📓 Recorded Data":

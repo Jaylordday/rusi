@@ -33,11 +33,26 @@ class FacebookManager:
         return all_comments
 
     def get_messages(self, limit=20):
-        # Requires 'pages_messaging' permission
-        url = f"{self.base_url}/{self.page_id}/conversations?fields=messages{{message,from,created_time}},senders,updated_time&limit={limit}&access_token={self.access_token}"
+        # Fetches list of conversations
+        url = f"{self.base_url}/{self.page_id}/conversations?fields=messages{{message,from,created_time}},participants,updated_time,unread_count&limit={limit}&access_token={self.access_token}"
         response = requests.get(url)
-        data = response.json().get('data', [])
-        return data
+        return response.json().get('data', [])
+
+    def get_conversation_history(self, conv_id):
+        # Fetches all messages in a specific conversation
+        url = f"{self.base_url}/{conv_id}/messages?fields=message,from,created_time&access_token={self.access_token}"
+        response = requests.get(url)
+        return response.json().get('data', [])
+
+    def send_private_message(self, recipient_id, message_text):
+        # Sends a message to a specific user (recipient_id is the PSID)
+        url = f"{self.base_url}/me/messages?access_token={self.access_token}"
+        payload = {
+            "recipient": {"id": recipient_id},
+            "message": {"text": message_text}
+        }
+        response = requests.post(url, json=payload)
+        return response.json()
 
     def reply_to_comment(self, comment_id, message):
         url = f"{self.base_url}/{comment_id}/comments?message={message}&access_token={self.access_token}"
