@@ -36,37 +36,44 @@ st.markdown("""
         margin-bottom: 10px;
     }
     .stMetric {
-        background-color: #1f2937;
-        padding: 15px;
-        border-radius: 10px;
+        background-color: rgba(31, 41, 55, 0.5);
+        padding: 20px;
+        border-radius: 12px;
         border-left: 5px solid #ff4b4b;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+        box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        backdrop-filter: blur(4px);
+        -webkit-backdrop-filter: blur(4px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
     .post-card {
-        background-color: #1a1c23;
-        padding: 15px;
+        background-color: rgba(26, 28, 35, 0.6);
+        padding: 20px;
         border-radius: 15px;
-        margin-bottom: 20px;
-        border: 1px solid #3e4451;
+        margin-bottom: 25px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
     }
     .comment-card {
-        background-color: #262730;
+        background-color: rgba(38, 39, 48, 0.7);
         padding: 20px;
         border-radius: 12px;
         margin-bottom: 15px;
-        border: 1px solid #3e4451;
-        transition: transform 0.2s;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        transition: all 0.3s ease;
     }
     .comment-card:hover {
-        transform: scale(1.01);
+        transform: translateY(-5px);
         border-color: #ff4b4b;
+        box-shadow: 0 8px 25px rgba(255, 75, 75, 0.2);
     }
     .stat-badge {
-        background: #374151;
-        padding: 4px 12px;
+        background: rgba(55, 65, 81, 0.8);
+        padding: 6px 14px;
         border-radius: 20px;
-        font-size: 0.8em;
-        margin-right: 10px;
+        font-size: 0.85em;
+        margin-right: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
     }
     .bike-header {
         color: #ff4b4b;
@@ -187,14 +194,28 @@ def get_sentiment(text):
 
 # --- DASHBOARD ---
 if app_mode == "📊 Dashboard":
-    st.title("Business Social Feed")
+    st.title("Admin Control Center")
     
+    # Hero Stats
     posts = fb.get_posts(limit=10)
+    total_reacts = sum(p.get('reactions', {}).get('summary', {}).get('total_count', 0) for p in posts)
+    total_comments = sum(p.get('comments', {}).get('summary', {}).get('total_count', 0) for p in posts)
     
-    if not posts:
-        st.info("No recent posts found.")
-    else:
-        for p in posts:
+    m1, m2, m3 = st.columns(3)
+    with m1:
+        st.metric("Total Engagement", f"{total_reacts + total_comments:,}", delta="Live Feed")
+    with m2:
+        st.metric("Active Campaigns", len(posts), delta="Posts")
+    with m3:
+        st.metric("Page Health", "Excellent", delta="100%")
+
+    st.divider()
+    
+    col_main, col_side = st.columns([2, 1])
+    
+    with col_main:
+        st.subheader("📢 Social Feed")
+        if not posts:
             with st.container():
                 st.markdown(f'<div class="post-card">', unsafe_allow_html=True)
                 
@@ -225,7 +246,30 @@ if app_mode == "📊 Dashboard":
                         # Note: We'll show these below or redirect
                         st.toast("Opening comments...")
 
-                st.markdown('</div>', unsafe_allow_html=True)
+        with col_side:
+            st.subheader("🔍 Insights")
+            
+            # Sentiment Chart
+            conn = sqlite3.connect('rusi_records.db')
+            df_c = pd.read_sql_query("SELECT message FROM comments", conn)
+            conn.close()
+            
+            if not df_c.empty:
+                df_c['sent'] = df_c['message'].apply(lambda x: get_sentiment(x)[0])
+                sent_counts = df_c['sent'].value_counts()
+                fig_pie = px.pie(values=sent_counts.values, names=sent_counts.index, 
+                                 hole=0.4, color_discrete_sequence=['#10b981', '#6b7280', '#ef4444'])
+                fig_pie.update_layout(showlegend=False, margin=dict(t=0, b=0, l=0, r=0), height=250)
+                st.plotly_chart(fig_pie, use_container_width=True)
+                st.write("**Customer Sentiment Analysis**")
+            else:
+                st.info("Gathering sentiment data...")
+
+            st.divider()
+            st.write("**Quick Tools**")
+            if st.button("Clear Cache", use_container_width=True):
+                st.cache_data.clear()
+            st.markdown("[Open FB Business Suite ↗️](https://business.facebook.com/)")
 
         if "selected_post" in st.session_state:
             st.divider()
