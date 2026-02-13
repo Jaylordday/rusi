@@ -1,0 +1,9 @@
+.env
+__pycache__/
+*.pyc
+.streamlit/
+rusi_records.db
+.venv
+venv
+env
+/access
